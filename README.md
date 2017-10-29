@@ -122,4 +122,115 @@ async function startSpider (stack) {
 dataStream.write(`第${++num}篇文章的信息：` + JSON.stringify(dataObj) + '\n');
 ```
 
-完整代码见：[第一版本](./index.js)。
+完整代码见：[第一版本](./spider1/index.js)。
+
+然后，我们可以使用stream对象来改进一下代码。
+
+我们可以定义个reqStack类，用来创建一个功能比较完备的请求队列对象。这个对象继承自stream类对象的Transform对象，如下：
+``` javascript
+class reqStack extends Transform {
+	constructor (concurr) {
+		super({
+			transform:  (chunk, enc, cb) => {
+				this.flag = true;
+				(async function () {
+					try {
+						while (this.flag && this.stack.length) {
+							console.log('stack length', this.stack.length);
+							let arr = this.stack.splice(0, this.concurr);
+							let responses = arr.map(function (item) { // 基本类型 promise对象 和 返回值为promise对象的函数
+								if (item instanceof Function) 
+									return item();
+								return item;
+							});
+							for (let item of responses) {
+								let data = await item;
+								this.emit('data', data); //触发data事件
+							}
+						}
+						if (this.isEmpty() && this.isClose) {
+							this.end();
+						}
+					} catch (e) {
+						console.log('stack error:', e);
+					}
+				})();
+			},
+			flush: () => {
+				
+			}
+		});
+		this.concurr = concurr;
+	}
+}
+```
+它的功能有进行并发请求，并可以设置并发数：
+同时利用事件机制来进行触发，如在得到返回数据后发射data信号。
+
+完整代码见[stream版本](./spider1/stream.js)
+
+因为stream是继承自事件对象，因此我们可以通过EventEmitter类来直接创建一个请求列表对象。
+``` javascript
+class reqStack extends EventEmitter {
+	constructor (reqs = [], concurr = 1) { // 参数为并发数,可以注册的事件有'data' 'end'
+		super();
+		this.concurr = concurr;
+		this.stack = reqs;
+		this.flag = false; // 是否开启的标识变量
+		this.isClose = false;
+	}
+	push (...args) {
+		console.log('data input');
+		if (this.isClose) {
+			return false;
+		}
+		let isEmpty = this.isEmpty();
+		this.stack.push(...args);
+		this.flag && isEmpty && this.start();
+		return true;
+	}
+	async start () {
+		this.flag = true;
+		console.log('start', this.stack.length);
+		try {
+			while (this.flag && this.stack.length) {
+				console.log('stack length', this.stack.length);
+				let arr = this.stack.splice(0, this.concurr);
+				let responses = arr.map(function (item) { // 基本类型 promise对象 和 返回值为promise对象的函数
+					if (item instanceof Function) {
+						return item();
+					}
+					return item;
+				});
+				for (let item of responses) {
+					let data = await item;
+					this.emit('data', data); // 触发data事件
+				}
+			}
+			if (this.isEmpty() && this.isClose) {
+				this.end();
+			}
+		} catch (e) {
+			console.log('stack error:', e);
+		}
+	}
+	end () {
+		console.log('stack end');
+		this.emit('end');
+	}
+	pause () {
+		process.nextTick(_ => {
+			this.flag = false;
+		});
+	}
+	isEmpty () {
+		return this.stack.length === 0;
+	}
+	close () {
+		this.isClose = true;
+	}
+}
+```
+该对象在具有请求并发控制的基础上，借助于EventEmitter的信号机制，添加了开始，暂停，关闭功能。
+
+完整代码见[第三个版本](./spider/index4.js)
