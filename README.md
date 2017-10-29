@@ -15,6 +15,7 @@ js作为脚本语言，它的灵活性和开发效率都可以保证。借助于
 
 然后，具体实现为：
 
+### 第一版本
 在第一阶段，先进行初始化的工作，如构造url, 建立http服务等。
 
 将请求用promise进行包装的功能函数
@@ -124,6 +125,7 @@ dataStream.write(`第${++num}篇文章的信息：` + JSON.stringify(dataObj) + 
 
 完整代码见：[第一版本](./spider1/index.js)。
 
+### 第二版本
 然后，我们可以使用stream对象来改进一下代码。
 
 我们可以定义个reqStack类，用来创建一个功能比较完备的请求队列对象。这个对象继承自stream类对象的Transform对象，如下：
@@ -169,6 +171,7 @@ class reqStack extends Transform {
 
 完整代码见[stream版本](./spider1/stream.js)
 
+### 第三版本
 因为stream是继承自事件对象，因此我们可以通过EventEmitter类来直接创建一个请求列表对象。
 ``` javascript
 class reqStack extends EventEmitter {
