@@ -236,4 +236,4 @@ class reqStack extends EventEmitter {
 ```
 该对象在具有请求并发控制的基础上，借助于EventEmitter的信号机制，添加了开始，暂停，关闭功能。
 
-完整代码见[第三个版本](./spider/index4.js)
+完整代码见[第三个版本](./spider1/index4.js)
